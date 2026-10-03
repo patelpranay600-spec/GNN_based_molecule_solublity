@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchNet 3D Solubility Predictor</title>
+    <!-- Import 3Dmol.js for rendering chemical structures -->
+    <script src="https://3Dmol.csb.pitt.edu/build/3Dmol-min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 800px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
+        button { padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #1d4ed8; }
+        .results { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px; background: #eef2ff; border-radius: 6px; border: 1px solid #c7d2fe; }
+        .score { font-size: 24px; font-weight: bold; color: #1e40af; }
+        #viewer { width: 100%; height: 500px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; position: relative; }
+        .error { color: #dc2626; display: none; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>SchNet 3D Solubility Explorer</h2>
+        
+        <div class="controls">
+            <input type="text" id="smilesInput" placeholder="Enter SMILES (e.g., CCO for Ethanol)" value="CCO">
+            <button onclick="runPrediction()">Predict LogS</button>
+        </div>
+
+        <div id="errorMessage" class="error"></div>
+
+        <div class="results">
+            <div>
+                <strong>Predicted Aqueous Solubility (LogS):</strong>
+                <div id="solubilityScore" class="score">--</div>
+            </div>
+            <div id="statusText" style="color: #6b7280; font-size: 14px;">Ready</div>
+        </div>
+        
+        <!-- The 3Dmol viewer container -->
+        <div id="viewer"></div>
+    </div>
+
+    <script>
+        // Initialize the 3D viewer
+        let viewer = $3Dmol.createViewer("viewer", { backgroundColor: "white" });
+
+        async function runPrediction() {
+            const smiles = document.getElementById("smilesInput").value.trim();
+            const scoreElement = document.getElementById("solubilityScore");
+            const statusElement = document.getElementById("statusText");
+            const errorElement = document.getElementById("errorMessage");
+
+            if (!smiles) return;
+
+            // Reset UI state
+            scoreElement.innerText = "Loading...";
+            statusElement.innerText = "Generating 3D coordinates & running SchNet...";
+            errorElement.style.display = "none";
+            viewer.clear();
+
+            try {
+                // Call your local FastAPI backend
+                const response = await fetch("http://127.0.0.1:8000/predict", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ smiles: smiles })
+                });
+                
+                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+                
+                const data = await response.json();
+                
+                // Update UI with the predicted score
+                scoreElement.innerText = data.predicted_logS;
+                statusElement.innerText = "Success";
+
+                // Render the 3D structure using the returned SDF block
+                viewer.addModel(data.sdf_file, "sdf"); 
+                
+                // Style: Ball and Stick representation
+                viewer.setStyle({}, { 
+                    stick: { radius: 0.15, colorscheme: "Jmol" }, 
+                    sphere: { scale: 0.3, colorscheme: "Jmol" } 
+                });
+                
+                viewer.zoomTo();
+                viewer.render(); 
+
+            } catch (error) {
+                console.error(error);
+                scoreElement.innerText = "Error";
+                statusElement.innerText = "Failed";
+                errorElement.innerText = "Failed to connect to the API. Is your FastAPI server running on port 8000?";
+                errorElement.style.display = "block";
+            }
+        }
+    </script>
+</body>
+</html>
