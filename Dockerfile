@@ -1,7 +1,7 @@
 FROM python:3.10-slim
 
-# Install system dependencies required by RDKit and PyTorch
-RUN apt-get update && apt-get install -y libxrender1 libxext6 libgl1-mesa-glx && rm -rf /var/lib/apt/lists/*
+# Use libgl1 instead of the deprecated libgl1-mesa-glx
+RUN apt-get update && apt-get install -y libxrender1 libxext6 libgl1 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
