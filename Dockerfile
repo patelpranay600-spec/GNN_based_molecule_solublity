@@ -1,11 +1,15 @@
 FROM python:3.10-slim
 
-# Use libgl1 instead of the deprecated libgl1-mesa-glx
+# Install system dependencies
 RUN apt-get update && apt-get install -y libxrender1 libxext6 libgl1 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install PyTorch CPU first to avoid pulling massive GPU wheels
+# Upgrade pip and install typing-extensions FIRST to prevent build failures
+RUN pip install --upgrade pip
+RUN pip install typing-extensions==4.9.0
+
+# Install PyTorch CPU
 RUN pip install torch==2.2.0 --index-url https://download.pytorch.org/whl/cpu
 
 # Copy requirements and install the rest
